@@ -6,9 +6,9 @@ type Reservation = {
   code: string;
   name: string;
   grade: string | null;
-  partySize: number;
   status: "confirmed" | "cancelled" | "checked_in";
   slot: { date: string; startTime: string; endTime: string };
+  rig: { name: string; spec: string };
 };
 
 function formatDateLabel(date: string) {
@@ -102,8 +102,12 @@ export default function ReservationDetailClient({ code }: { code: string }) {
         </p>
         <p className="text-sm text-slate-600">
           {reservation.name} 様
-          {reservation.grade ? `（${reservation.grade}）` : ""} / {reservation.partySize}名
+          {reservation.grade ? `（${reservation.grade}）` : ""}
         </p>
+        <p className="mt-2 text-sm font-medium text-slate-700">{reservation.rig.name}</p>
+        {reservation.rig.spec && (
+          <p className="text-xs text-slate-500">{reservation.rig.spec}</p>
+        )}
       </div>
 
       {reservation.status === "confirmed" && (

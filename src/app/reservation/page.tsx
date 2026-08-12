@@ -25,7 +25,7 @@ export default function ReservationLookupPage() {
           onChange={(e) => setCode(e.target.value)}
           maxLength={6}
           placeholder="例: A3F9K2"
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 uppercase tracking-widest"
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 uppercase tracking-widest"
         />
         <button
           type="submit"

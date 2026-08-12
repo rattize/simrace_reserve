@@ -9,7 +9,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
   const { code } = await params;
   const reservation = await prisma.reservation.findUnique({
     where: { code: code.toUpperCase() },
-    include: { slot: true },
+    include: { slot: true, rig: true },
   });
 
   if (!reservation) {
@@ -37,10 +37,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await tx.reservation.update({
       where: { id: reservation.id },
       data: { status: "cancelled" },
-    });
-    await tx.slot.update({
-      where: { id: reservation.slotId },
-      data: { bookedCount: { decrement: reservation.partySize } },
     });
 
     return { ok: true as const };

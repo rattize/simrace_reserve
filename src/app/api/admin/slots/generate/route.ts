@@ -38,7 +38,6 @@ export async function POST() {
       date: d.date,
       startTime: d.startTime,
       endTime: d.endTime,
-      capacity: d.capacity,
     })),
   });
 
