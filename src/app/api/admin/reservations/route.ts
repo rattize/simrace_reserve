@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
           }
         : {}),
     },
-    include: { slot: true },
+    include: { slot: true, rig: true },
     orderBy: [{ slot: { startTime: "asc" } }, { createdAt: "asc" }],
   });
 

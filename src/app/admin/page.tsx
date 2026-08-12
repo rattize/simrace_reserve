@@ -7,9 +7,9 @@ type Reservation = {
   code: string;
   name: string;
   grade: string | null;
-  partySize: number;
   status: "confirmed" | "cancelled" | "checked_in";
   slot: { id: string; date: string; startTime: string; endTime: string };
+  rig: { name: string };
 };
 
 function formatTimeLabel(iso: string) {
@@ -64,7 +64,7 @@ export default function AdminDashboardPage() {
         <select
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
         >
           <option value="">すべての日付</option>
           {dates.map((d) => (
@@ -84,7 +84,7 @@ export default function AdminDashboardPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="氏名・予約コードで検索"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
           />
           <button type="submit" className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             検索
@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
                 <th className="px-3 py-2">コード</th>
                 <th className="px-3 py-2">氏名</th>
                 <th className="px-3 py-2">学年・組</th>
-                <th className="px-3 py-2">人数</th>
+                <th className="px-3 py-2">機体</th>
                 <th className="px-3 py-2">状態</th>
                 <th className="px-3 py-2"></th>
               </tr>
@@ -119,7 +119,7 @@ export default function AdminDashboardPage() {
                   <td className="px-3 py-2 font-mono tracking-wider">{r.code}</td>
                   <td className="px-3 py-2">{r.name}</td>
                   <td className="px-3 py-2">{r.grade ?? "-"}</td>
-                  <td className="px-3 py-2">{r.partySize}</td>
+                  <td className="px-3 py-2">{r.rig.name}</td>
                   <td className="px-3 py-2">
                     {r.status === "checked_in" ? (
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">

@@ -8,15 +8,22 @@ type Slot = {
   date: string;
   startTime: string;
   endTime: string;
-  capacity: number;
-  remaining: number;
+  totalRigCount: number;
+  availableRigCount: number;
+};
+
+type Rig = {
+  id: string;
+  name: string;
+  spec: string;
+  available: boolean;
 };
 
 type Reservation = {
   code: string;
   name: string;
-  partySize: number;
   slot: { date: string; startTime: string; endTime: string };
+  rig: { name: string; spec: string };
 };
 
 function formatDateLabel(date: string) {
@@ -41,9 +48,10 @@ export default function BookingClient() {
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [rigs, setRigs] = useState<Rig[] | null>(null);
+  const [selectedRigId, setSelectedRigId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("");
-  const [partySize, setPartySize] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reservation, setReservation] = useState<Reservation | null>(null);
@@ -52,6 +60,13 @@ export default function BookingClient() {
     const res = await fetch("/api/slots", { cache: "no-store" });
     const data = await res.json();
     setSlots(data.slots as Slot[]);
+  }
+
+  async function loadRigs(slotId: string) {
+    setRigs(null);
+    const res = await fetch(`/api/slots/${slotId}/rigs`, { cache: "no-store" });
+    const data = await res.json();
+    setRigs(res.ok ? (data.rigs as Rig[]) : []);
   }
 
   useEffect(() => {
@@ -77,12 +92,21 @@ export default function BookingClient() {
     [slots, selectedSlotId],
   );
 
-  const maxPartySize = selectedSlot ? Math.max(1, selectedSlot.remaining) : 20;
-  const effectivePartySize = Math.min(partySize, maxPartySize);
+  const selectedRig = useMemo(
+    () => (rigs ?? []).find((r) => r.id === selectedRigId) ?? null,
+    [rigs, selectedRigId],
+  );
+
+  function handleSelectSlot(slotId: string) {
+    setSelectedSlotId(slotId);
+    setSelectedRigId(null);
+    // 枠選択直後にその枠の機体一覧を取得する
+    loadRigs(slotId);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedSlotId) return;
+    if (!selectedSlotId || !selectedRigId) return;
     setSubmitting(true);
     setError(null);
 
@@ -91,9 +115,9 @@ export default function BookingClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         slotId: selectedSlotId,
+        rigId: selectedRigId,
         name,
         grade,
-        partySize: effectivePartySize,
       }),
     });
     const data = await res.json();
@@ -101,8 +125,8 @@ export default function BookingClient() {
     if (!res.ok) {
       setError(data.error ?? "予約に失敗しました。");
       setSubmitting(false);
-      await loadSlots();
-      setSelectedSlotId(null);
+      await Promise.all([loadSlots(), loadRigs(selectedSlotId)]);
+      setSelectedRigId(null);
       return;
     }
 
@@ -123,9 +147,13 @@ export default function BookingClient() {
             {formatTimeLabel(reservation.slot.startTime)}〜
             {formatTimeLabel(reservation.slot.endTime)}
           </p>
-          <p className="text-sm text-slate-600">
-            {reservation.name} 様 / {reservation.partySize}名
+          <p className="text-sm text-slate-600">{reservation.name} 様</p>
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {reservation.rig.name}
           </p>
+          {reservation.rig.spec && (
+            <p className="text-xs text-slate-500">{reservation.rig.spec}</p>
+          )}
         </div>
         <p className="mt-4 text-sm text-slate-500">
           この予約コードは当日の受付や照会に必要です。忘れずに控えてください。
@@ -163,6 +191,8 @@ export default function BookingClient() {
             onClick={() => {
               setSelectedDate(date);
               setSelectedSlotId(null);
+              setRigs(null);
+              setSelectedRigId(null);
             }}
             className={`shrink-0 rounded-full px-4 py-2 text-sm ${
               activeDate === date
@@ -177,23 +207,23 @@ export default function BookingClient() {
 
       <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
         {slotsForDate.map((slot) => {
-          const full = slot.remaining <= 0;
+          const full = slot.availableRigCount <= 0;
           return (
             <button
               key={slot.id}
               disabled={full}
-              onClick={() => setSelectedSlotId(slot.id)}
+              onClick={() => handleSelectSlot(slot.id)}
               className={`rounded-lg border p-2 text-sm ${
                 selectedSlotId === slot.id
                   ? "border-slate-900 bg-slate-900 text-white"
                   : full
-                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                    ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
                     : "border-slate-300 bg-white hover:border-slate-400"
               }`}
             >
               <div>{formatTimeLabel(slot.startTime)}</div>
               <div className="text-xs opacity-80">
-                {full ? "満席" : `残${slot.remaining}/${slot.capacity}`}
+                {full ? "満席" : `残${slot.availableRigCount}台`}
               </div>
             </button>
           );
@@ -201,12 +231,57 @@ export default function BookingClient() {
       </div>
 
       {selectedSlot && (
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-sm font-medium">
             {formatDateLabel(selectedSlot.date)} {formatTimeLabel(selectedSlot.startTime)}〜
-            {formatTimeLabel(selectedSlot.endTime)} を予約
+            {formatTimeLabel(selectedSlot.endTime)} の機体を選択
           </p>
 
+          {rigs === null ? (
+            <p className="mt-3 text-sm text-slate-500">読み込み中...</p>
+          ) : rigs.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">機体が登録されていません。</p>
+          ) : (
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {rigs.map((rig) => (
+                <button
+                  key={rig.id}
+                  type="button"
+                  disabled={!rig.available}
+                  onClick={() => setSelectedRigId(rig.id)}
+                  className={`rounded-lg border p-3 text-left text-sm ${
+                    selectedRigId === rig.id
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : !rig.available
+                        ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                        : "border-slate-300 bg-white hover:border-slate-400"
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-medium">
+                    <span>{rig.name}</span>
+                    {!rig.available && <span className="text-xs">予約済み</span>}
+                  </div>
+                  {rig.spec && (
+                    <p
+                      className={`mt-1 text-xs ${
+                        selectedRigId === rig.id ? "text-slate-200" : "text-slate-500"
+                      }`}
+                    >
+                      {rig.spec}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {selectedSlot && selectedRig && (
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-white p-4"
+        >
           <div>
             <label className="block text-sm text-slate-600">お名前 *</label>
             <input
@@ -214,7 +289,7 @@ export default function BookingClient() {
               maxLength={50}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
               placeholder="山田 太郎"
             />
           </div>
@@ -225,20 +300,8 @@ export default function BookingClient() {
               maxLength={30}
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
               placeholder="1年A組"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-slate-600">人数</label>
-            <input
-              type="number"
-              min={1}
-              max={maxPartySize}
-              value={effectivePartySize}
-              onChange={(e) => setPartySize(Number(e.target.value))}
-              className="mt-1 w-24 rounded-lg border border-slate-300 px-3 py-2"
             />
           </div>
 

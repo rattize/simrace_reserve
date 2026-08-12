@@ -10,14 +10,12 @@ export type EventConfigLike = {
   openTime: string;
   closeTime: string;
   slotMinutes: number;
-  rigCount: number;
 };
 
 export type SlotDraft = {
   date: string;
   startTime: Date;
   endTime: Date;
-  capacity: number;
 };
 
 export function parseEventDates(eventDates: string): string[] {
@@ -41,7 +39,6 @@ export function buildSlotDrafts(config: EventConfigLike): SlotDraft[] {
         date,
         startTime: new Date(cursor),
         endTime: new Date(cursor + stepMs),
-        capacity: config.rigCount,
       });
       cursor += stepMs;
     }

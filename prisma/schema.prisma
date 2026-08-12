@@ -12,11 +12,19 @@ datasource db {
 
 model EventConfig {
   id          Int    @id @default(1)
-  rigCount    Int    @default(4) // 稼働台数 = 1枠の定員
   slotMinutes Int    @default(10) // 1枠の長さ(分)
   eventDates  String @default("") // "2026-09-12,2026-09-13" のようなCSV
   openTime    String @default("09:00")
   closeTime   String @default("17:00")
+}
+
+model Rig {
+  id           String        @id @default(cuid())
+  name         String // 例: "1号機"
+  spec         String // スペック説明（自由記述）
+  isActive     Boolean       @default(true) // false=当面使わない
+  createdAt    DateTime      @default(now())
+  reservations Reservation[]
 }
 
 model Slot {
@@ -24,9 +32,7 @@ model Slot {
   date         String // "2026-09-12"
   startTime    DateTime
   endTime      DateTime
-  capacity     Int
-  bookedCount  Int           @default(0)
-  isOpen       Boolean       @default(true) // 機材トラブル等で運営が枠を閉じられる
+  isOpen       Boolean       @default(true) // 休憩時間等で運営が枠を閉じられる
   reservations Reservation[]
 
   @@index([date])
@@ -37,12 +43,14 @@ model Reservation {
   code        String    @unique // 受付/照会用の短い英数字コード
   slotId      String
   slot        Slot      @relation(fields: [slotId], references: [id])
+  rigId       String
+  rig         Rig       @relation(fields: [rigId], references: [id])
   name        String
   grade       String? // 学年・組（任意）
-  partySize   Int       @default(1)
   status      String    @default("confirmed") // confirmed / cancelled / checked_in
   checkedInAt DateTime?
   createdAt   DateTime  @default(now())
 
   @@index([slotId])
+  @@index([rigId])
 }

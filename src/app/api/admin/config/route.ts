@@ -12,15 +12,11 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   const body = await request.json().catch(() => null);
 
-  const rigCount = Number(body?.rigCount);
   const slotMinutes = Number(body?.slotMinutes);
   const eventDates = typeof body?.eventDates === "string" ? body.eventDates.trim() : "";
   const openTime = typeof body?.openTime === "string" ? body.openTime : "";
   const closeTime = typeof body?.closeTime === "string" ? body.closeTime : "";
 
-  if (!Number.isInteger(rigCount) || rigCount < 1 || rigCount > 100) {
-    return NextResponse.json({ error: "台数が不正です。" }, { status: 400 });
-  }
   if (!Number.isInteger(slotMinutes) || slotMinutes < 1 || slotMinutes > 180) {
     return NextResponse.json({ error: "枠の長さが不正です。" }, { status: 400 });
   }
@@ -41,7 +37,7 @@ export async function PUT(request: NextRequest) {
   await getEventConfig();
   const config = await prisma.eventConfig.update({
     where: { id: 1 },
-    data: { rigCount, slotMinutes, eventDates: dates.join(","), openTime, closeTime },
+    data: { slotMinutes, eventDates: dates.join(","), openTime, closeTime },
   });
 
   return NextResponse.json({ config });
