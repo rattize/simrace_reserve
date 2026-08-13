@@ -42,9 +42,41 @@ npm run dev
 5. 当日は `/admin` で予約一覧を確認し、来場者の受付時に「チェックイン」を押す
 6. 機材トラブル等でその機体が使えなくなった場合は「機体管理」で当該機体を非稼働にする（予約履歴がある機体は削除できない仕様）。休憩時間などで時間枠ごと閉じたい場合は「時間枠の個別設定」で該当枠の「受付中」を外す
 
-## デプロイ（Vercel + Postgres）
+## デプロイ（本番運用）
 
-このアプリは開発時 SQLite（ファイルDB）を使っていますが、Vercelのようなサーバーレス環境ではファイルが永続化されないため、**本番ではPostgresへの切り替えが必須**です。また Prisma 7 はDBごとに専用の「ドライバーアダプタ」を使うため、以下の切り替え作業が必要です。
+### 方式A: ローカルサーバー + Cloudflare Tunnel（推奨・採用中）
+
+学園祭当日1〜2日だけ稼働させる用途なら、SQLiteのままローカルPCで動かし、Cloudflare Tunnelで外部公開するのが最も簡単。SQLiteはファイルベースなので、Vercelのようなサーバーレス環境とは違い、1台のマシンでプロセスが動き続けるこの構成とは相性が良い。
+
+1. 本番ビルドして起動する（`4000`番ポートで待受）
+
+   ```bash
+   npm run build
+   npm run start
+   ```
+
+2. `cloudflared` をインストールする（例: `sudo apt install cloudflared` / Mac は `brew install cloudflared`）
+3. トンネルを起動して公開する
+
+   - お試し・一時利用（Cloudflareアカウント不要、`*.trycloudflare.com` のランダムなURLが発行される）:
+     ```bash
+     cloudflared tunnel --url http://localhost:4000
+     ```
+   - 独自ドメイン等で固定URLにしたい場合は `cloudflared tunnel login` でCloudflareアカウントに認証後、Named Tunnelを作成する（詳細は cloudflared 公式ドキュメント参照）
+
+4. 発行されたURLが来場者向けの予約URLになる。同じURLに `/admin` を付ければ管理画面にもアクセスできる
+
+**公開前に必ず確認すること**
+
+- `.env` の `ADMIN_PASSWORD` を、今設定されている簡易な値から推測されにくいものに変更する（外部公開する以上、総当たりされうる）
+- `AUTH_SECRET` はランダムな値になっているか確認する（`openssl rand -hex 32` で再生成可）
+- ログインセッションCookieは本番モード (`NODE_ENV=production`、`npm run start` で自動的にそうなる) では `Secure` 属性付きで発行される。Cloudflare TunnelはHTTPSで終端するのでトンネル経由のURLでは問題なく動作するが、トンネルをバイパスして `http://<LANのIP>:4000` に直接アクセスすると、ブラウザがCookieを送らずログインが機能しない（想定通りの挙動）
+- `next start` と `cloudflared tunnel` の両プロセスをイベント中ずっと起動したままにする必要がある（PCのスリープ・スクリーンロックでのスリープ移行に注意。`pm2` や `tmux`/`screen` での常駐化を推奨）
+- 予約データは `dev.db` 1ファイルにしか存在しない。当日は定期的に別の場所へコピーしておくと、PCのトラブル時に復旧できる
+
+### 方式B: Vercel + Postgres
+
+外部ホスティングに載せたい場合の代替案。Vercelのようなサーバーレス環境ではファイルが永続化されないため、**Postgresへの切り替えが必須**。また Prisma 7 はDBごとに専用の「ドライバーアダプタ」を使うため、以下の切り替え作業が必要。
 
 1. Vercelにデプロイ後、プロジェクトの Storage タブから Postgres を追加する（Neon/Supabase等の無料枠でも可）
 2. `prisma/schema.prisma` の `datasource` を `provider = "postgresql"` に変更
