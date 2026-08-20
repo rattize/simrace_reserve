@@ -29,6 +29,9 @@ export default function AdminNav() {
         <Link href="/admin/settings" className={linkClass("/admin/settings")}>
           設定
         </Link>
+        <Link href="/display" target="_blank" className={linkClass("/display")}>
+          受付案内を開く
+        </Link>
       </nav>
       <button onClick={handleLogout} className="text-sm text-slate-500 hover:text-slate-800">
         ログアウト
