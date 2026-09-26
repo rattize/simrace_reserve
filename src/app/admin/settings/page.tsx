@@ -44,6 +44,8 @@ export default function AdminSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [savingConfig, setSavingConfig] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set());
+  const [deletingSlots, setDeletingSlots] = useState(false);
 
   async function loadConfig() {
     const res = await fetch("/api/admin/config", { cache: "no-store" });
@@ -125,6 +127,40 @@ export default function AdminSettingsPage() {
       return;
     }
     setMessage("枠を更新しました。");
+  }
+
+  async function deleteSlots(ids: string[], confirmMessage: string) {
+    if (ids.length === 0 || !confirm(confirmMessage)) return;
+    setDeletingSlots(true);
+    setError(null);
+    setMessage(null);
+
+    const res = await fetch("/api/admin/slots", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error ?? "枠の削除に失敗しました。");
+    } else {
+      setMessage(`${data.deleted}件の枠を削除しました。`);
+      setSelectedSlotIds(new Set());
+    }
+    await loadSlots();
+    setDeletingSlots(false);
+  }
+
+  function toggleSlotSelection(ids: string[], checked: boolean) {
+    setSelectedSlotIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
   }
 
   function updateSlotLocal(id: string, patch: Partial<Slot>) {
@@ -364,53 +400,112 @@ export default function AdminSettingsPage() {
       </form>
 
       <h2 className="mt-8 text-lg font-bold">時間枠の個別設定</h2>
+      <p className="mt-1 text-xs text-slate-500">
+        予約が入っている枠は削除できません。開催設定を変えて枠を作り直すときは、その日の枠を削除してから「枠を生成」を押してください。
+      </p>
+      {slots.length > 0 && (
+        <div className="mt-2">
+          <button
+            onClick={() =>
+              deleteSlots(
+                [...selectedSlotIds],
+                `選択した${selectedSlotIds.size}件の枠を削除しますか？`,
+              )
+            }
+            disabled={selectedSlotIds.size === 0 || deletingSlots}
+            className="rounded-lg border border-red-300 px-3 py-1 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+          >
+            選択した枠を削除（{selectedSlotIds.size}件）
+          </button>
+        </div>
+      )}
       {Object.keys(slotsByDate).length === 0 ? (
         <p className="mt-2 text-sm text-slate-500">まだ枠がありません。</p>
       ) : (
-        Object.entries(slotsByDate).map(([date, dateSlots]) => (
-          <div key={date} className="mt-4">
-            <h3 className="text-sm font-semibold text-slate-600">{date}</h3>
-            <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2">時間</th>
-                    <th className="px-3 py-2">予約数/稼働機体数</th>
-                    <th className="px-3 py-2">受付中</th>
-                    <th className="px-3 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dateSlots.map((s) => (
-                    <tr key={s.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {formatTimeLabel(s.startTime)}〜{formatTimeLabel(s.endTime)}
-                      </td>
-                      <td className="px-3 py-2">
-                        {s.bookedCount} / {activeRigCount}
-                      </td>
-                      <td className="px-3 py-2">
+        Object.entries(slotsByDate).map(([date, dateSlots]) => {
+          const deletableIds = dateSlots.filter((s) => s.bookedCount === 0).map((s) => s.id);
+          const allSelected =
+            deletableIds.length > 0 && deletableIds.every((id) => selectedSlotIds.has(id));
+          return (
+            <div key={date} className="mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-slate-600">{date}</h3>
+                <button
+                  onClick={() =>
+                    deleteSlots(
+                      dateSlots.map((s) => s.id),
+                      `${date} の枠（${dateSlots.length}件）をすべて削除しますか？`,
+                    )
+                  }
+                  disabled={deletingSlots}
+                  className="rounded-lg border border-red-300 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  この日の枠をすべて削除
+                </button>
+              </div>
+              <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-left text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2">
                         <input
                           type="checkbox"
-                          checked={s.isOpen}
-                          onChange={(e) => updateSlotLocal(s.id, { isOpen: e.target.checked })}
+                          aria-label={`${date} の枠をすべて選択`}
+                          checked={allSelected}
+                          disabled={deletableIds.length === 0}
+                          onChange={(e) => toggleSlotSelection(deletableIds, e.target.checked)}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          onClick={() => handleSlotSave(s)}
-                          className="rounded-lg border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
-                        >
-                          保存
-                        </button>
-                      </td>
+                      </th>
+                      <th className="px-3 py-2">時間</th>
+                      <th className="px-3 py-2">予約数/稼働機体数</th>
+                      <th className="px-3 py-2">受付中</th>
+                      <th className="px-3 py-2"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {dateSlots.map((s) => (
+                      <tr key={s.id} className="border-t border-slate-100">
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            aria-label="削除対象に選択"
+                            title={
+                              s.bookedCount > 0 ? "予約が入っているため削除できません" : undefined
+                            }
+                            checked={selectedSlotIds.has(s.id)}
+                            disabled={s.bookedCount > 0}
+                            onChange={(e) => toggleSlotSelection([s.id], e.target.checked)}
+                          />
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {formatTimeLabel(s.startTime)}〜{formatTimeLabel(s.endTime)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {s.bookedCount} / {activeRigCount}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="checkbox"
+                            checked={s.isOpen}
+                            onChange={(e) => updateSlotLocal(s.id, { isOpen: e.target.checked })}
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            onClick={() => handleSlotSave(s)}
+                            className="rounded-lg border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                          >
+                            保存
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
