@@ -1,7 +1,14 @@
 import Link from "next/link";
 import Announcements from "@/components/Announcements";
+import Markdown from "@/components/Markdown";
+import { getPageContent } from "@/lib/pageContent";
 
-export default function Home() {
+// 「ご来場の流れ」は管理画面から編集できるため、リクエストごとにDBから読む
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const visitGuide = await getPageContent("top.visitGuide");
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-4 py-16 text-center">
       <h1 className="text-3xl font-bold">🏎️ シムレース体験</h1>
@@ -28,14 +35,11 @@ export default function Home() {
         </Link>
       </div>
 
-      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-600">
-        <p className="font-medium text-slate-800">ご来場の流れ</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>お好きな時間枠を予約すると、6桁の予約コードが発行されます。</li>
-          <li>当日は開始時刻までに受付までお越しください。</li>
-          <li>受付で予約コードまたはお名前をお伝えください。</li>
-        </ol>
-      </div>
+      {visitGuide.trim() && (
+        <div className="mt-10 rounded-xl border border-slate-200 bg-white p-4 text-left text-sm text-slate-600">
+          <Markdown>{visitGuide}</Markdown>
+        </div>
+      )}
     </div>
   );
 }
