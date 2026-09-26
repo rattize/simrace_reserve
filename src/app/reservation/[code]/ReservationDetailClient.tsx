@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Announcements from "@/components/Announcements";
 
 type Reservation = {
   code: string;
@@ -90,6 +91,7 @@ export default function ReservationDetailClient({ code }: { code: string }) {
   return (
     <div className="mx-auto max-w-md px-4 py-10">
       <h1 className="text-xl font-bold">予約内容</h1>
+      <Announcements className="mt-4" />
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
         <p className="text-2xl font-bold tracking-widest">{reservation.code}</p>
         <p className="mt-2 text-sm text-slate-600">
