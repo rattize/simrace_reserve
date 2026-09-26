@@ -32,6 +32,9 @@ export default function AdminNav() {
         <Link href="/admin/announcements" className={linkClass("/admin/announcements")}>
           お知らせ
         </Link>
+        <Link href="/admin/pages" className={linkClass("/admin/pages")}>
+          ページ編集
+        </Link>
         <Link href="/display" target="_blank" className={linkClass("/display")}>
           受付案内を開く
         </Link>

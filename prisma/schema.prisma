@@ -63,3 +63,9 @@ model Announcement {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model PageContent {
+  key       String   @id // 例: "top.visitGuide"
+  markdown  String
+  updatedAt DateTime @updatedAt
+}
