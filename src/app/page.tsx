@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Announcements from "@/components/Announcements";
 
 export default function Home() {
   return (
@@ -9,6 +10,8 @@ export default function Home() {
         <br />
         下のボタンから来場前に時間枠を予約できます。
       </p>
+
+      <Announcements className="mt-6" />
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <Link

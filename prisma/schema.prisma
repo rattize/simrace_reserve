@@ -54,3 +54,12 @@ model Reservation {
   @@index([slotId])
   @@index([rigId])
 }
+
+model Announcement {
+  id          String   @id @default(cuid())
+  body        String // お知らせ本文（改行可）
+  level       String   @default("info") // info=通常 / important=重要
+  isPublished Boolean  @default(true) // false=非表示（下書き）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

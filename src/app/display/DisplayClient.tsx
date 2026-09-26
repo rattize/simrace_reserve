@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Announcements from "@/components/Announcements";
 
 type SlotStatus = {
   id: string;
@@ -150,6 +151,8 @@ export default function DisplayClient() {
           </p>
         </div>
       )}
+
+      <Announcements variant="display" pollMs={15000} className="max-w-4xl" />
     </div>
   );
 }
