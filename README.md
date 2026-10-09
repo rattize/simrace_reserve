@@ -76,6 +76,22 @@ npm run dev
 - `next start` と `cloudflared tunnel` の両プロセスをイベント中ずっと起動したままにする必要がある（PCのスリープ・スクリーンロックでのスリープ移行に注意。`pm2` や `tmux`/`screen` での常駐化を推奨）
 - 予約データは `dev.db` 1ファイルにしか存在しない。当日は定期的に別の場所へコピーしておくと、PCのトラブル時に復旧できる
 
+### 方式A': Docker で起動する
+
+方式Aの `npm run build` / `npm run start` の代わりに Docker で動かすこともできる。起動時に `prisma migrate deploy` が自動で実行される。DB は コンテナ内の `/app/data/app.db` に作られるので、ボリュームをマウントして永続化する。
+
+```bash
+docker build -t simrace-reserve .
+```
+
+```bash
+docker run -d --name simrace-reserve --restart unless-stopped -p 4000:4000 -v simrace-data:/app/data -e ADMIN_PASSWORD='推測されにくいパスワード' -e AUTH_SECRET="$(openssl rand -hex 32)" simrace-reserve
+```
+
+- DB のバックアップは `docker cp simrace-reserve:/app/data/app.db ./backup.db` で取得できる
+- 既存の `dev.db` を引き継ぐ場合は、受付開始前に `docker cp ./dev.db simrace-reserve:/app/data/app.db` → `docker restart simrace-reserve`
+- `AUTH_SECRET` を変えるとログイン中のセッションが無効になるだけで、予約データには影響しない
+
 ### 方式B: Vercel + Postgres
 
 外部ホスティングに載せたい場合の代替案。Vercelのようなサーバーレス環境ではファイルが永続化されないため、**Postgresへの切り替えが必須**。また Prisma 7 はDBごとに専用の「ドライバーアダプタ」を使うため、以下の切り替え作業が必要。
